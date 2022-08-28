@@ -116,7 +116,7 @@ namespace BuilderTools
 
                 config.TryGetConfig<bool>("kbdCategroryKeys", ref kbdCategroryKeys);
 
-                string modName = "Advanced Building";
+                string modName = "Builder Tools";
                 OptionKey blockPickerKey = new OptionKey("Block Picker activation key", modName, BlockPicker.block_picker_key);
                 blockPickerKey.onValueSaved.AddListener(() =>
                 {

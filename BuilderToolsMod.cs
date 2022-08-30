@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.IO;
 using System.Reflection;
@@ -15,10 +14,8 @@ namespace BuilderTools
 {
     public class BuilderToolsMod : ModBase
     {
-        private static GameObject _holder;
-        internal static AssetBundle assetBundle;
+        private static GameObject holder;
         internal static ModConfig config = new ModConfig();
-        internal static string asm_path = Assembly.GetExecutingAssembly().Location.Replace("BuilderTools.dll", "");
         internal const string HarmonyID = "exund.buildertools";
         internal static Harmony harmony = new Harmony(HarmonyID);
 
@@ -26,31 +23,32 @@ namespace BuilderTools
 
         private static void SetupCOM()
         {
-            var ontop = new Material(assetBundle.LoadAsset<Shader>("OnTop"));
+            var ontop = new Material(BuilderToolsContainer.Contents.FindAsset("OnTop") as Shader);
             var go = new GameObject();
             var mr = go.AddComponent<MeshRenderer>();
             mr.material = ontop;
             Texture2D texture = BuilderToolsContainer.Contents.FindAsset("CO_Icon") as Texture2D;
             mr.material.mainTexture = texture;
-            mr.material.mainTexture.filterMode = FilterMode.Point;
+
             var mf = go.AddComponent<MeshFilter>();
             Mesh mesh = null;
             foreach (UnityEngine.Object obj in BuilderToolsContainer.Contents.FindAllAssets("CO.obj"))
             {
                 if (obj != null)
                 {
-                    if (obj is Mesh)
+                    if (obj is Mesh mesh1)
                     {
-                        mesh = (Mesh)obj;
+                        mesh = mesh1;
                         break;
                     }
-                    else if (obj is GameObject)
+                    else if (obj is GameObject gameObject)
                     {
-                        mesh = ((GameObject)obj).GetComponentInChildren<MeshFilter>().sharedMesh;
+                        mesh = gameObject.GetComponentInChildren<MeshFilter>().sharedMesh;
                         break;
                     }
                 }
             }
+
             mf.sharedMesh = mf.mesh = mesh;
 
             var line = new GameObject();
@@ -64,7 +62,7 @@ namespace BuilderTools
             line.transform.SetParent(go.transform, false);
 
             go.SetActive(false);
-            go.transform.SetParent(_holder.transform, false);
+            go.transform.SetParent(holder.transform, false);
 
             PhysicsInfo.COM = GameObject.Instantiate(go);
             var commat = PhysicsInfo.COM.GetComponent<MeshRenderer>().material;
@@ -93,14 +91,12 @@ namespace BuilderTools
 
         private static void Load()
         {
-            assetBundle = AssetBundle.LoadFromFile(asm_path + "advancedbuilding.assetbundle");
-
             try
             {
-                _holder = new GameObject();
-                _holder.AddComponent<BlockPicker>();
+                holder = new GameObject();
+                holder.AddComponent<BlockPicker>();
 
-                UnityEngine.Object.DontDestroyOnLoad(_holder);
+                UnityEngine.Object.DontDestroyOnLoad(holder);
 
                 config.TryGetConfig<bool>("open_inventory", ref BlockPicker.open_inventory);
                 config.TryGetConfig<bool>("global_filters", ref BlockPicker.global_filters);
@@ -162,214 +158,12 @@ namespace BuilderTools
                 NativeOptionsMod.onOptionsSaved.AddListener(() => { config.WriteConfigJsonFile(); });
 
                 SetupCOM();
-                _holder.AddComponent<PhysicsInfo>();
-                _holder.AddComponent<PaletteTextFilter>();
+                holder.AddComponent<PhysicsInfo>();
+                holder.AddComponent<PaletteTextFilter>();
             }
             catch (Exception e)
             {
                 Console.WriteLine(e);
-            }
-        }
-
-        public static float NumberField(float value)
-        {
-            var h = GUILayout.Height(25f);
-            float.TryParse(GUILayout.TextField(value.ToString(CultureInfo.InvariantCulture), h), out float val);
-            val = (float)Math.Round(val, 6);
-            if (Math.Abs(val - value) > 1e-6)
-            {
-                GUI.changed = true;
-            }
-
-            return val;
-        }
-
-        public static float NumberField(float value, float interval)
-        {
-            var h = GUILayout.Height(25f);
-            var w = GUILayout.Width(25f);
-
-            float val;
-            GUILayout.BeginHorizontal(h);
-            {
-                float.TryParse(GUILayout.TextField(value.ToString(CultureInfo.InvariantCulture), h), out val);
-                if (GUILayout.Button("+", w, h))
-                {
-                    val += interval;
-                }
-
-                if (GUILayout.Button("-", w, h))
-                {
-                    val -= interval;
-                }
-            }
-            GUILayout.EndHorizontal();
-
-            val = (float)Math.Round(val, 6);
-            if (Math.Abs(val - value) > 1e-6)
-            {
-                GUI.changed = true;
-            }
-
-            return val;
-        }
-
-        public static Vector3 Vector3Field(Vector3 value, float interval, Vector3 defaultValue, string additionalText, params GUILayoutOption[] options)
-        {
-            Vector3 ret;
-            GUILayout.BeginVertical(options);
-            {
-                var x = value.x;
-                var y = value.y;
-                var z = value.z;
-
-                GUILayout.Label($"X {additionalText}");
-                x = NumberField(x, interval);
-
-                GUILayout.Label($"Y {additionalText}");
-                y = NumberField(y, interval);
-
-                GUILayout.Label($"Z {additionalText}");
-                z = NumberField(z, interval);
-
-                ret = new Vector3(x, y, z);
-
-                GUILayout.BeginHorizontal();
-                {
-                    if (GUILayout.Button("Snap to closest"))
-                    {
-                        for (int i = 0; i < 3; i++)
-                        {
-                            ret[i] = Mathf.Round(ret[i] / interval) * interval;
-                        }
-                    }
-
-                    GUILayout.FlexibleSpace();
-
-                    if (GUILayout.Button("Reset"))
-                    {
-                        ret = defaultValue;
-                    }
-                }
-                GUILayout.EndHorizontal();
-            }
-            GUILayout.EndVertical();
-
-            return ret;
-        }
-
-        private static class Patches
-        {
-            [HarmonyPatch(typeof(TankPreset.BlockSpec), "InitFromBlockState")]
-            private static class BlockSpec_InitFromBlockState
-            {
-                static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
-                {
-                    var codes = new List<CodeInstruction>(instructions);
-                    var niv = codes.FindIndex(op => op.opcode == OpCodes.Newobj);
-                    codes[niv - 2].operand = typeof(TankBlock).GetProperty("cachedLocalPosition", BindingFlags.Instance | BindingFlags.Public).GetGetMethod(false);
-                    codes[niv - 1] = new CodeInstruction(OpCodes.Nop);
-
-                    return codes;
-                }
-            }
-
-            [HarmonyPatch(typeof(ManPointer), "OnMouse")]
-            private static class ManControllerTechBuilder_SpawnNewPaintingBlock
-            {
-                static void Prefix()
-                {
-                    if (Input.GetMouseButton(0) && Input.GetKey(BlockPicker.block_picker_key) && ManPlayer.inst.PaletteUnlocked)
-                    {
-                        ManPointer.inst.ChangeBuildMode((ManPointer.BuildingMode)10);
-                    }
-                }
-            }
-
-            private static class UIPaletteBlockSelect_Patches
-            {
-                [HarmonyPatch(typeof(UIPaletteBlockSelect), "BlockFilterFunction")]
-                private static class BlockFilterFunction
-                {
-                    static void Postfix(ref BlockTypes blockType, ref bool __result)
-                    {
-                        if (__result)
-                        {
-                            __result = PaletteTextFilter.BlockFilterFunction(blockType);
-                        }
-                    }
-                }
-
-                [HarmonyPatch(typeof(UIPaletteBlockSelect), "OnPool")]
-                private static class OnPool
-                {
-                    static void Postfix(ref UIPaletteBlockSelect __instance)
-                    {
-                        PaletteTextFilter.Init(__instance);
-                    }
-                }
-
-                [HarmonyPatch(typeof(UIPaletteBlockSelect), "Collapse")]
-                private static class Collapse
-                {
-                    static void Postfix(ref bool __result)
-                    {
-                        PaletteTextFilter.OnPaletteCollapse(__result);
-                    }
-                }
-
-                [HarmonyPatch(typeof(UIPaletteBlockSelect), "Update")]
-                private static class Update
-                {
-                    private static readonly BindingFlags flags = BindingFlags.NonPublic | BindingFlags.Instance;
-
-                    private static readonly FieldInfo
-                        m_CategoryToggles = typeof(UIPaletteBlockSelect).GetField("m_CategoryToggles", flags),
-                        m_Controller = typeof(UICategoryToggles).GetField("m_Controller", flags),
-                        m_Entries = typeof(UITogglesController).GetField("m_Entries", flags),
-                        m_Toggle = typeof(UITogglesController).GetNestedType("ToggleEntry", BindingFlags.NonPublic).GetField("m_Toggle");
-
-                    private static readonly int Alpha1 = (int)KeyCode.Alpha1;
-
-                    static void Prefix(ref UIPaletteBlockSelect __instance)
-                    {
-                        if (kbdCategroryKeys && __instance.IsExpanded && PaletteTextFilter.PreventPause())
-                        {
-                            var categoryToggles = (UICategoryToggles)m_CategoryToggles.GetValue(__instance);
-
-                            int selected = -1;
-
-                            var max = Alpha1 + categoryToggles.NumToggles;
-                            for (int i = Alpha1; i < max; i++)
-                            {
-                                if (Input.GetKeyDown((KeyCode)i))
-                                {
-                                    selected = i - Alpha1;
-                                }
-                            }
-
-                            if (selected >= 0)
-                            {
-                                var controller = m_Controller.GetValue(categoryToggles);
-                                var entries = (IList)m_Entries.GetValue(controller);
-                                var toggle = (ToggleWrapper)m_Toggle.GetValue(entries[selected]);
-                                categoryToggles.GetAllToggle().isOn = false;
-                                categoryToggles.ToggleAllOff();
-
-                                toggle.InvokeToggleHandler(true, false);
-                            }
-                        }
-                    }
-                }
-            }
-
-            [HarmonyPatch(typeof(ManPauseGame), "TogglePauseMenu")]
-            private static class ManPauseGame_TogglePauseMenu
-            {
-                static bool Prefix()
-                {
-                    return PaletteTextFilter.PreventPause();
-                }
             }
         }
 
@@ -389,6 +183,7 @@ namespace BuilderTools
                 {
                     Console.WriteLine("FAILED TO FETCH BuilderTools ModContainer");
                 }
+
                 Inited = true;
                 Load();
             }

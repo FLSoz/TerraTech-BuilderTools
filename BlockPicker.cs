@@ -2,24 +2,25 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using HarmonyLib;
 using UnityEngine;
 
 namespace BuilderTools
 {
-    class BlockPicker : MonoBehaviour
+    internal class BlockPicker : MonoBehaviour
     {
         internal static KeyCode block_picker_key = KeyCode.LeftShift;
         internal static bool open_inventory = false;
         internal static bool global_filters = true;
 
-        static readonly BindingFlags flags = BindingFlags.NonPublic | BindingFlags.Instance;
         public static Type T_UIPaletteBlockSelect = typeof(UIPaletteBlockSelect);
-        static readonly FieldInfo m_Grid = T_UIPaletteBlockSelect.GetField("m_Grid", flags);
-        static readonly FieldInfo m_CategoryToggles = T_UIPaletteBlockSelect.GetField("m_CategoryToggles", flags);
-        static readonly FieldInfo m_CorpToggles = T_UIPaletteBlockSelect.GetField("m_CorpToggles", flags);
-        static readonly FieldInfo m_Controller = typeof(UICorpToggles).GetField("m_Controller", flags);
 
-        void Update()
+        private static readonly FieldInfo m_Grid = AccessTools.Field(T_UIPaletteBlockSelect, "m_Grid"),
+            m_CategoryToggles = AccessTools.Field(T_UIPaletteBlockSelect, "m_CategoryToggles"),
+            m_CorpToggles = AccessTools.Field(T_UIPaletteBlockSelect, "m_CorpToggles"),
+            m_Controller = AccessTools.Field(typeof(UICorpToggles), "m_Controller");
+
+        private void Update()
         {
             if (Input.GetMouseButtonDown(0) && Input.GetKey(block_picker_key) && ManPlayer.inst.PaletteUnlocked)
             {
@@ -27,15 +28,28 @@ namespace BuilderTools
                 if (!palette.IsExpanded && open_inventory)
                 {
                     var blockMenuSelection = Singleton.Manager<ManHUD>.inst.GetHudElement(ManHUD.HUDElementType.BlockMenuSelection) as UIBlockMenuSelection;
-                    blockMenuSelection.Hide(new UIBlockMenuSelection.Context() { targetMode = UIBlockMenuSelection.ModeMask.BlockPaletteAndTechs });
-                    blockMenuSelection.Show(new UIBlockMenuSelection.Context() { targetMode = UIBlockMenuSelection.ModeMask.BlockPalette });
-                    palette.Expand(new UIShopBlockSelect.ExpandContext() { expandReason = UIShopBlockSelect.ExpandReason.Button });
+
+                    blockMenuSelection.Hide(new UIBlockMenuSelection.Context()
+                    {
+                        targetMode = UIBlockMenuSelection.ModeMask.BlockPaletteAndTechs
+                    });
+                    blockMenuSelection.Show(new UIBlockMenuSelection.Context()
+                    {
+                        targetMode = UIBlockMenuSelection.ModeMask.BlockPalette
+                    });
+
+                    palette.Expand(new UIShopBlockSelect.ExpandContext()
+                    {
+                        expandReason = UIShopBlockSelect.ExpandReason.Button
+                    });
 
                     try
                     {
                         Singleton.Manager<ManHUD>.inst.HideHudElement(ManHUD.HUDElementType.TechLoader);
                     }
-                    catch { }
+                    catch
+                    {
+                    }
                 }
 
                 if (palette.IsExpanded)
@@ -67,6 +81,7 @@ namespace BuilderTools
                         palette.TrySelectBlockType(temp_block.BlockType);
                     }
                 }
+
                 Singleton.Manager<ManPointer>.inst.ChangeBuildMode(ManPointer.BuildingMode.PaintBlock);
             }
         }

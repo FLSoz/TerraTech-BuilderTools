@@ -6,9 +6,9 @@ using UnityEngine.UI;
 
 namespace BuilderTools
 {
-    class PaletteTextFilter : MonoBehaviour
+    internal class PaletteTextFilter : MonoBehaviour
     {
-        static readonly FieldInfo m_UpdateGrid = BlockPicker.T_UIPaletteBlockSelect.GetField("m_UpdateGrid", BindingFlags.NonPublic | BindingFlags.Instance);
+        private static readonly FieldInfo m_UpdateGrid = BlockPicker.T_UIPaletteBlockSelect.GetField("m_UpdateGrid", BindingFlags.NonPublic | BindingFlags.Instance);
         public static MethodInfo SetUIInputMode = typeof(ManInput).GetMethod("SetUIInputMode", BindingFlags.NonPublic | BindingFlags.Instance);
 
         public static readonly Font[] fonts = Resources.FindObjectsOfTypeAll<Font>();
@@ -19,13 +19,14 @@ namespace BuilderTools
 
         public static bool clearOnCollapse = true;
 
-        static UIInputMode mode;
-        static bool wasFocused = false;
-        static InputField inputField;
-        static RectTransform inputFieldRect; 
-        static UIPaletteBlockSelect blockPalette;
+        private static UIInputMode mode;
+        private static bool wasFocused = false;
+        private static InputField inputField;
+        private static RectTransform inputFieldRect;
+        private static UIPaletteBlockSelect blockPalette;
 
-        static string filter = "";
+        private static string filter = "";
+
         public static bool BlockFilterFunction(BlockTypes blockType)
         {
             if (filter == "") return true;
@@ -33,7 +34,7 @@ namespace BuilderTools
             return blockName.Contains(filter.ToLower());
         }
 
-        static void OnTextChanged(string text)
+        private static void OnTextChanged(string text)
         {
             filter = text;
             m_UpdateGrid.SetValue(blockPalette, true);
@@ -42,7 +43,8 @@ namespace BuilderTools
         public static void Init(UIPaletteBlockSelect palette)
         {
             blockPalette = palette;
-            var inputFieldGo = DefaultControls.CreateInputField(new DefaultControls.Resources() {
+            var inputFieldGo = DefaultControls.CreateInputField(new DefaultControls.Resources()
+            {
                 inputField = TEXT_FIELD_VERT_LEFT
             });
 
@@ -70,27 +72,22 @@ namespace BuilderTools
             placeholderText.text = "Block name";
             placeholderText.color = new Color(0.6784f, 0.6784f, 0.6784f);
 
+            var inputField_height = 40f;
+            var heightVec = new Vector2(0, inputField_height);
+
             inputField.transform.SetParent(blockPalette.transform.Find("HUD_BlockPainting_BG"), false);
             var rect = inputFieldGo.GetComponent<RectTransform>();
             rect.pivot = rect.anchorMax = rect.anchorMin = new Vector2(1, 1);
             rect.anchoredPosition3D = new Vector3(-5, -5, 77);
-            rect.sizeDelta = new Vector2(210, 40);
+            rect.sizeDelta = new Vector2(210, inputField_height);
 
             var scrollviewRect = blockPalette.transform.Find("HUD_BlockPainting_BG/Scroll View") as RectTransform;
-            var anchoredPosition3D = scrollviewRect.anchoredPosition3D;
-            anchoredPosition3D.y -= 40;
-            scrollviewRect.anchoredPosition3D = anchoredPosition3D;
-            var sizeDelta = scrollviewRect.sizeDelta;
-            sizeDelta.y -= 40;
-            scrollviewRect.sizeDelta = sizeDelta;
+            scrollviewRect.anchoredPosition -= heightVec;
+            scrollviewRect.sizeDelta -= heightVec;
 
             var scrollbarRect = blockPalette.transform.Find("HUD_BlockPainting_BG/Scrollbar") as RectTransform;
-            anchoredPosition3D = scrollbarRect.anchoredPosition3D;
-            anchoredPosition3D.y -= 40;
-            scrollbarRect.anchoredPosition3D = anchoredPosition3D;
-            sizeDelta = scrollbarRect.sizeDelta;
-            sizeDelta.y -= 40;
-            scrollbarRect.sizeDelta = sizeDelta;
+            scrollbarRect.anchoredPosition -= heightVec;
+            scrollbarRect.sizeDelta -= heightVec;
 
             inputFieldRect = rect;
 
@@ -135,17 +132,20 @@ namespace BuilderTools
             if (clearOnCollapse && collapse)
             {
                 ClearInput();
-            } 
+            }
         }
 
-        internal static void OnModeChange()
+        private static void OnModeChange()
         {
             ClearInput();
         }
 
-        static void ClearInput()
+        private static void ClearInput()
         {
-            if(inputField) inputField.text = "";
+            if (inputField)
+            {
+                inputField.text = "";
+            }
         }
     }
 }

@@ -2,13 +2,14 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using HarmonyLib;
 using UnityEngine;
 
 namespace BuilderTools
 {
-    class PhysicsInfo : MonoBehaviour
+    internal class PhysicsInfo : MonoBehaviour
     {
-        private readonly static int PhysicsInfo_ID = 7782;
+        private static readonly int PhysicsInfo_ID = 7782;
 
         internal static GameObject COM;
         internal static GameObject COT;
@@ -19,24 +20,23 @@ namespace BuilderTools
         private float reference_velocity = 100;
         private bool use_tech_velocity = false;
 
-        static float width = 300;
-        static float height = 200;
-        static Rect rect = new Rect((Screen.width - width) * 0.5f, 0, width, height);
+        private static float width = 300;
+        private static float height = 200;
+        private static Rect rect = new Rect((Screen.width - width) * 0.5f, 0, width, height);
 
-        static BindingFlags flags = BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public;
-        static Type T_BoosterJet = typeof(BoosterJet);
-        static FieldInfo BJ_m_Effector = T_BoosterJet.GetField("m_Effector", flags);
-        static FieldInfo BJ_m_Force = T_BoosterJet.GetField("m_Force", flags);
+        private static readonly Type T_BoosterJet = typeof(BoosterJet);
+        private static readonly FieldInfo BJ_m_Effector = AccessTools.Field(T_BoosterJet, "m_Effector"),
+            BJ_m_Force = AccessTools.Field(T_BoosterJet, "m_Force");
 
-        static Type T_FanJet = typeof(FanJet);
-        static FieldInfo FJ_m_Effector = T_FanJet.GetField("m_Effector", flags);
-        static FieldInfo FJ_force = T_FanJet.GetField("force", flags);
+        private static readonly Type T_FanJet = typeof(FanJet);
+        private static readonly FieldInfo FJ_m_Effector = AccessTools.Field(T_FanJet, "m_Effector"),
+            FJ_force = AccessTools.Field(T_FanJet, "force");
 
         //static Type T_ModuleWing = typeof(ModuleWing);
         //static FieldInfo m_FoilState = T_ModuleWing.GetField("m_FoilState", flags);
         //static FieldInfo attackAngleModifier = T_ModuleWing.GetNestedType("AerofoilState", BindingFlags.NonPublic).GetField("attackAngleModifier");
 
-        void Awake()
+        private void Awake()
         {
             useGUILayout = false;
             COM.SetActive(false);
@@ -44,7 +44,7 @@ namespace BuilderTools
             COL.SetActive(false);
         }
 
-        void Update()
+        private void Update()
         {
             if (Input.GetKey(KeyCode.LeftControl) && Input.GetKeyDown(centers_key))
             {
@@ -138,7 +138,7 @@ namespace BuilderTools
                                     float num = Mathf.Acos(Mathf.Clamp(Vector3.Dot(lhs, aerofoil.trans.up) / magnitude, -1f, 1f)) * 57.29578f - 90f;
                                     //num += (float)attackAngleModifier.GetValue(aerofoilState);
                                     //aerofoilState.attackAngleDamped = Mathf.Lerp(aerofoilState.attackAngleDamped, num, Mathf.Min(wing.m_AttackAngleDamping * Time.deltaTime, 1f));
-                                    float num2 = aerofoil.liftCurve.Evaluate(/*aerofoilState.attackAngleDamped*/num);
+                                    float num2 = aerofoil.liftCurve.Evaluate( /*aerofoilState.attackAngleDamped*/num);
                                     float num3 = magnitude * magnitude * num2 * aerofoil.liftStrength;
                                     if (Mathf.Abs(num3) >= Globals.inst.m_WingLiftIgnore)
                                     {
@@ -167,7 +167,7 @@ namespace BuilderTools
             }
         }
 
-        void OnGUI()
+        private void OnGUI()
         {
             if (!useGUILayout)
                 return;
@@ -190,10 +190,11 @@ namespace BuilderTools
             float.TryParse(GUILayout.TextField(reference_velocity.ToString()), out reference_velocity);
             use_tech_velocity = GUILayout.Toggle(use_tech_velocity, "Use tech velocity");
             GUILayout.FlexibleSpace();
-            if(GUILayout.Button("Close"))
+            if (GUILayout.Button("Close"))
             {
                 useGUILayout = false;
             }
+
             GUI.DragWindow();
         }
     }

@@ -13,24 +13,10 @@ namespace BuilderTools
 {
     internal static class Patches
     {
-        [HarmonyPatch(typeof(TankPreset.BlockSpec), "InitFromBlockState")]
-        private static class BlockSpec_InitFromBlockState
-        {
-            static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
-            {
-                var codes = new List<CodeInstruction>(instructions);
-                var niv = codes.FindIndex(op => op.opcode == OpCodes.Newobj);
-                codes[niv - 2].operand = typeof(TankBlock).GetProperty("cachedLocalPosition", BindingFlags.Instance | BindingFlags.Public).GetGetMethod(false);
-                codes[niv - 1] = new CodeInstruction(OpCodes.Nop);
-
-                return codes;
-            }
-        }
-
         [HarmonyPatch(typeof(ManPointer), "OnMouse")]
         private static class ManControllerTechBuilder_SpawnNewPaintingBlock
         {
-            static void Prefix()
+            private static void Prefix()
             {
                 if (Input.GetMouseButton(0) && Input.GetKey(BlockPicker.block_picker_key) && ManPlayer.inst.PaletteUnlocked)
                 {
@@ -44,7 +30,7 @@ namespace BuilderTools
             [HarmonyPatch(typeof(UIPaletteBlockSelect), "BlockFilterFunction")]
             private static class BlockFilterFunction
             {
-                static void Postfix(ref BlockTypes blockType, ref bool __result)
+                private static void Postfix(ref BlockTypes blockType, ref bool __result)
                 {
                     if (__result)
                     {
@@ -56,7 +42,7 @@ namespace BuilderTools
             [HarmonyPatch(typeof(UIPaletteBlockSelect), "OnPool")]
             private static class OnPool
             {
-                static void Postfix(ref UIPaletteBlockSelect __instance)
+                private static void Postfix(ref UIPaletteBlockSelect __instance)
                 {
                     PaletteTextFilter.Init(__instance);
                 }
@@ -65,7 +51,7 @@ namespace BuilderTools
             [HarmonyPatch(typeof(UIPaletteBlockSelect), "Collapse")]
             private static class Collapse
             {
-                static void Postfix(ref bool __result)
+                private static void Postfix(ref bool __result)
                 {
                     PaletteTextFilter.OnPaletteCollapse(__result);
                 }
@@ -77,14 +63,14 @@ namespace BuilderTools
                 private static readonly BindingFlags flags = BindingFlags.NonPublic | BindingFlags.Instance;
 
                 private static readonly FieldInfo
-                    m_CategoryToggles = typeof(UIPaletteBlockSelect).GetField("m_CategoryToggles", flags),
-                    m_Controller = typeof(UICategoryToggles).GetField("m_Controller", flags),
-                    m_Entries = typeof(UITogglesController).GetField("m_Entries", flags),
-                    m_Toggle = typeof(UITogglesController).GetNestedType("ToggleEntry", BindingFlags.NonPublic).GetField("m_Toggle");
+                    m_CategoryToggles = AccessTools.Field(typeof(UIPaletteBlockSelect), "m_CategoryToggles"),
+                    m_Controller = AccessTools.Field(typeof(UICategoryToggles), "m_Controller"),
+                    m_Entries = AccessTools.Field(typeof(UITogglesController), "m_Entries"),
+                    m_Toggle = AccessTools.Inner(typeof(UITogglesController), "ToggleEntry").GetField("m_Toggle");
 
                 private static readonly int Alpha1 = (int)KeyCode.Alpha1;
 
-                static void Prefix(ref UIPaletteBlockSelect __instance)
+                private static void Prefix(ref UIPaletteBlockSelect __instance)
                 {
                     if (BuilderToolsMod.kbdCategroryKeys && __instance.IsExpanded && PaletteTextFilter.PreventPause())
                     {
@@ -119,7 +105,7 @@ namespace BuilderTools
         [HarmonyPatch(typeof(ManPauseGame), "TogglePauseMenu")]
         private static class ManPauseGame_TogglePauseMenu
         {
-            static bool Prefix()
+            private static bool Prefix()
             {
                 return PaletteTextFilter.PreventPause();
             }
